@@ -1,4 +1,5 @@
 import sys
+import math
 
 import pygame
 import random
@@ -15,6 +16,240 @@ from classes.meteors import Meteors, Meteors2, BlackHole
 from classes.explosions import Explosion, Explosion2
 from classes.enemies import Enemy1, Enemy2
 from classes.bosses import Boss1, Boss2, Boss3
+
+
+class ParallaxLayer:
+    """A single layer of the parallax background with continuous scrolling."""
+
+    def __init__(self, width, height, speed, color_range, star_count, star_size_range):
+        self.width = width
+        self.height = height
+        self.speed = speed
+        self.y_offset = 0.0
+
+        self.surface = pygame.Surface((width, height), pygame.SRCALPHA)
+        self._generate_stars(color_range, star_count, star_size_range)
+
+    def _generate_stars(self, color_range, star_count, star_size_range):
+        """Generate random stars with varying sizes and colors."""
+        for _ in range(star_count):
+            x = random.randint(0, self.width - 1)
+            y = random.randint(0, self.height - 1)
+            size = random.randint(star_size_range[0], star_size_range[1])
+            brightness = random.randint(color_range[0], color_range[1])
+
+            # Add slight color variation for cosmic feel
+            r = min(255, brightness + random.randint(-20, 30))
+            g = min(255, brightness + random.randint(-10, 20))
+            b = min(255, brightness + random.randint(0, 40))
+
+            if size == 1:
+                self.surface.set_at((x, y), (r, g, b, brightness))
+            else:
+                # Larger stars with glow effect
+                glow_surf = pygame.Surface((size * 3, size * 3), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (r, g, b, brightness // 3),
+                                   (size * 3 // 2, size * 3 // 2), size * 2)
+                pygame.draw.circle(glow_surf, (r, g, b, brightness),
+                                   (size * 3 // 2, size * 3 // 2), size)
+                self.surface.blit(glow_surf, (x - size, y - size))
+
+    def update(self, dt=1.0):
+        """Update the layer's vertical offset for scrolling."""
+        self.y_offset += self.speed * dt
+        if self.y_offset >= self.height:
+            self.y_offset -= self.height
+
+    def draw(self, screen):
+        """Draw the layer with seamless vertical wrapping."""
+        y1 = int(self.y_offset)
+        y2 = y1 - self.height
+
+        screen.blit(self.surface, (0, y1))
+        screen.blit(self.surface, (0, y2))
+
+
+class ParallaxBackground:
+    """3-layer parallax background system for cosmic theme."""
+
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        self.base_color = (5, 5, 15)  # Deep space blue-black
+        self.nebula_phase = 0.0
+
+        # Layer 1: Distant stars (slowest) - small, dim
+        self.layer_far = ParallaxLayer(
+            width, height,
+            speed=0.3,
+            color_range=(80, 150),
+            star_count=200,
+            star_size_range=(1, 1)
+        )
+
+        # Layer 2: Mid-distance stars - medium brightness
+        self.layer_mid = ParallaxLayer(
+            width, height,
+            speed=0.7,
+            color_range=(120, 200),
+            star_count=100,
+            star_size_range=(1, 2)
+        )
+
+        # Layer 3: Near stars (fastest) - bright, larger
+        self.layer_near = ParallaxLayer(
+            width, height,
+            speed=1.2,
+            color_range=(180, 255),
+            star_count=50,
+            star_size_range=(2, 3)
+        )
+
+        # Pre-render nebula overlay
+        self.nebula_surface = self._create_nebula_surface()
+
+    def _create_nebula_surface(self):
+        """Create a subtle nebula overlay for cosmic atmosphere."""
+        surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+
+        for _ in range(8):
+            x = random.randint(0, self.width)
+            y = random.randint(0, self.height)
+            radius = random.randint(150, 400)
+
+            # Cosmic colors: purples, blues, cyans
+            colors = [
+                (80, 20, 120, 8),   # Purple
+                (20, 40, 100, 6),   # Deep blue
+                (20, 80, 100, 5),   # Cyan-blue
+                (100, 20, 80, 7),   # Magenta
+            ]
+            color = random.choice(colors)
+
+            # Create gradient blob
+            for r in range(radius, 0, -20):
+                alpha = int(color[3] * (r / radius))
+                pygame.draw.circle(surface, (*color[:3], alpha), (x, y), r)
+
+        return surface
+
+    def update(self, speed_multiplier=1.0):
+        """Update all parallax layers."""
+        self.layer_far.update(speed_multiplier)
+        self.layer_mid.update(speed_multiplier)
+        self.layer_near.update(speed_multiplier)
+        self.nebula_phase += 0.01
+
+    def draw(self, screen):
+        """Draw the complete parallax background."""
+        screen.fill(self.base_color)
+        self.layer_far.draw(screen)
+        self.layer_mid.draw(screen)
+
+        # Draw nebula with subtle pulsing
+        nebula_alpha = int(30 + 10 * math.sin(self.nebula_phase))
+        self.nebula_surface.set_alpha(nebula_alpha)
+        screen.blit(self.nebula_surface, (0, 0))
+
+        self.layer_near.draw(screen)
+
+
+class NeonGlowBar:
+    """Semi-transparent bar with neon glow effect."""
+
+    def __init__(self, x, y, width, height, icon_image, glow_color, fill_color):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.icon_image = icon_image
+        self.glow_color = glow_color
+        self.fill_color = fill_color
+        self.low_color = (80, 80, 80)  # Dimmed color when low
+
+        self.icon_width = icon_image.get_width() if icon_image else 0
+        self.bar_x_offset = self.icon_width + 5
+        self.bar_width = width - self.bar_x_offset
+
+        # Pre-render glow surfaces
+        self._create_glow_surfaces()
+
+    def _create_glow_surfaces(self):
+        """Create the glow effect surfaces."""
+        glow_padding = 6
+        glow_width = self.bar_width + glow_padding * 2
+        glow_height = self.height + glow_padding * 2
+
+        self.outer_glow = pygame.Surface((glow_width, glow_height), pygame.SRCALPHA)
+        self.inner_glow = pygame.Surface((self.bar_width + 4, self.height + 4), pygame.SRCALPHA)
+
+        # Outer glow (softer, larger)
+        for i in range(glow_padding, 0, -1):
+            alpha = int(40 * (1 - i / glow_padding))
+            rect = pygame.Rect(i, i, glow_width - 2 * i, glow_height - 2 * i)
+            pygame.draw.rect(self.outer_glow, (*self.glow_color[:3], alpha), rect, border_radius=4)
+
+    def draw(self, screen, current_value, max_value):
+        """Draw the neon glow bar with current fill level."""
+        fill_ratio = max(0, min(1, current_value / max_value))
+        is_low = fill_ratio <= 0.25
+
+        # Create main surface with transparency
+        surface = pygame.Surface((self.width, self.height + 12), pygame.SRCALPHA)
+
+        # Draw outer glow
+        glow_x = self.bar_x_offset - 6
+        glow_y = 0
+        if not is_low:
+            glow_alpha = int(100 + 30 * math.sin(pygame.time.get_ticks() * 0.005))
+            self.outer_glow.set_alpha(glow_alpha)
+            surface.blit(self.outer_glow, (glow_x, glow_y))
+
+        # Draw background (semi-transparent dark)
+        bar_rect = pygame.Rect(self.bar_x_offset, 6, self.bar_width, self.height)
+        pygame.draw.rect(surface, (20, 20, 30, 180), bar_rect, border_radius=3)
+
+        # Draw fill bar
+        fill_width = int(self.bar_width * fill_ratio)
+        if fill_width > 0:
+            fill_rect = pygame.Rect(self.bar_x_offset, 6, fill_width, self.height)
+            fill_color = self.low_color if is_low else self.fill_color
+
+            # Gradient fill effect
+            gradient_surf = pygame.Surface((fill_width, self.height), pygame.SRCALPHA)
+            for i in range(self.height):
+                brightness = 1.0 - (abs(i - self.height // 2) / self.height) * 0.4
+                r = int(fill_color[0] * brightness)
+                g = int(fill_color[1] * brightness)
+                b = int(fill_color[2] * brightness)
+                pygame.draw.line(gradient_surf, (r, g, b, 200), (0, i), (fill_width, i))
+
+            surface.blit(gradient_surf, (self.bar_x_offset, 6))
+
+            # Inner glow on fill bar
+            if not is_low:
+                inner_glow_surf = pygame.Surface((fill_width, self.height), pygame.SRCALPHA)
+                pygame.draw.rect(inner_glow_surf, (*self.glow_color[:3], 60),
+                                 (0, 0, fill_width, 3), border_radius=2)
+                pygame.draw.rect(inner_glow_surf, (*self.glow_color[:3], 40),
+                                 (0, self.height - 3, fill_width, 3), border_radius=2)
+                surface.blit(inner_glow_surf, (self.bar_x_offset, 6))
+
+        # Draw border
+        border_color = self.glow_color if not is_low else (100, 100, 100)
+        pygame.draw.rect(surface, (*border_color, 200), bar_rect, width=2, border_radius=3)
+
+        # Draw icon with glow
+        if self.icon_image:
+            icon_glow = pygame.Surface((self.icon_width + 8, self.icon_image.get_height() + 8), pygame.SRCALPHA)
+            if not is_low:
+                glow_alpha = int(60 + 20 * math.sin(pygame.time.get_ticks() * 0.004))
+                pygame.draw.rect(icon_glow, (*self.glow_color[:3], glow_alpha),
+                                 (0, 0, self.icon_width + 8, self.icon_image.get_height() + 8), border_radius=4)
+            surface.blit(icon_glow, (-4, 2))
+            surface.blit(self.icon_image, (0, 6))
+
+        screen.blit(surface, (self.x, self.y))
 
 
 pygame.init()
@@ -58,14 +293,8 @@ boss3_health = 200
 boss3_health_bar_rect = pygame.Rect(0, 0, 200, 5)
 boss3_spawned = False
 
-bg_y_shift = -HEIGHT
-background_img = pygame.image.load('images/bg/background.jpg').convert()
-background_img2 = pygame.image.load('images/bg/background2.png').convert()
-background_img3 = pygame.image.load('images/bg/background3.png').convert()
-background_img4 = pygame.image.load('images/bg/background4.png').convert()
-background_top = background_img.copy()
-current_image = background_img
-new_background_activated = False
+# Initialize parallax background
+parallax_bg = ParallaxBackground(WIDTH, HEIGHT)
 
 explosion_images = [pygame.image.load(f"images/explosion/explosion{i}.png") for i in range(8)]
 explosion2_images = [pygame.image.load(f"images/explosion2/explosion{i}.png") for i in range(18)]
@@ -105,6 +334,27 @@ black_hole_imgs = [
     pygame.image.load('images/hole/black_hole.png').convert_alpha(),
     pygame.image.load('images/hole/black_hole2.png').convert_alpha()
 ]
+
+# Load UI icons
+life_bar_icon = pygame.image.load("images/life_bar.png").convert_alpha()
+bullet_bar_icon = pygame.image.load("images/bullet_bar.png").convert_alpha()
+
+# Create neon glow bars
+health_bar = NeonGlowBar(
+    x=10, y=10,
+    width=200, height=20,
+    icon_image=life_bar_icon,
+    glow_color=(0, 255, 150),      # Cyan-green glow
+    fill_color=(80, 220, 140)       # Green fill
+)
+
+ammo_bar = NeonGlowBar(
+    x=10, y=50,
+    width=200, height=20,
+    icon_image=bullet_bar_icon,
+    glow_color=(255, 80, 80),       # Red glow
+    fill_color=(220, 80, 80)        # Red fill
+)
 
 initial_player_pos = (WIDTH // 2, HEIGHT - 100)
 
@@ -210,40 +460,18 @@ while running:
     if not paused:
         move_player(keys, player)
 
-        screen.blit(current_image, (0, bg_y_shift))
-        background_top_rect = background_top.get_rect(topleft=(0, bg_y_shift))
-        background_top_rect.top = bg_y_shift + HEIGHT
-        screen.blit(background_top, background_top_rect)
-
-    bg_y_shift += 1
-    if bg_y_shift >= 0:
-        bg_y_shift = -HEIGHT
-
+    # Calculate parallax speed multiplier based on score
+    speed_mult = 1.0
     if score > 3000:
-        bg_y_shift += 2
+        speed_mult = 1.5
+    if score > 10000:
+        speed_mult = 2.0
+    if score > 15000:
+        speed_mult = 2.5
 
-    if score >= 3000 and not new_background_activated:
-        current_image = background_img2
-        background_top = background_img2.copy()
-        new_background_activated = True
-
-    if score >= 10000 and new_background_activated:
-        current_image = background_img3
-        background_top = background_img3.copy()
-
-    if score >= 15000 and new_background_activated:
-        current_image = background_img4
-        background_top = background_img4.copy()
-
-    if score == 0:
-        current_image = background_img
-        background_top = background_img.copy()
-        new_background_activated = False
-
-    screen.blit(current_image, (0, bg_y_shift))
-    background_top_rect = background_top.get_rect(topleft=(0, bg_y_shift))
-    background_top_rect.top = bg_y_shift + HEIGHT
-    screen.blit(background_top, background_top_rect)
+    # Update and draw parallax background
+    parallax_bg.update(speed_mult)
+    parallax_bg.draw(screen)
 
     if score > hi_score:
         hi_score = score
@@ -758,55 +986,33 @@ while running:
             bullet.kill()
             bullet_counter -= 1
 
-    player_life_surface = pygame.Surface((200, 25), pygame.SRCALPHA, 32)
-    player_life_surface.set_alpha(216)
+    # Draw neon glow UI bars
+    health_bar.draw(screen, player_life, 200)
+    ammo_bar.draw(screen, bullet_counter, 200)
 
-    player_life_bar_width = int(player_life / 200 * 200)
-    player_life_bar_width = max(0, min(player_life_bar_width, 200))
+    # Draw score with neon glow effect
+    score_font = pygame.font.SysFont('Arial', 30, bold=True)
+    score_text = f'{score}'
+    score_surface = score_font.render(score_text, True, (255, 220, 100))
 
-    player_life_bar = pygame.Surface((player_life_bar_width, 30), pygame.SRCALPHA, 32)
-    player_life_bar.set_alpha(216)
+    # Create glow for score
+    glow_surface = pygame.Surface((score_surface.get_width() + 20, score_surface.get_height() + 20), pygame.SRCALPHA)
+    glow_text = score_font.render(score_text, True, (255, 180, 50))
+    for offset in [(2, 2), (-2, -2), (2, -2), (-2, 2)]:
+        glow_surface.blit(glow_text, (10 + offset[0], 10 + offset[1]))
+    glow_surface.set_alpha(80)
 
-    life_bar_image = pygame.image.load("images/life_bar.png").convert_alpha()
+    score_x = WIDTH - score_surface.get_width() - extra_score_img.get_width() - 20
+    screen.blit(glow_surface, (score_x - 10, 5))
+    screen.blit(score_surface, (score_x, 10))
+    screen.blit(extra_score_img, (score_x + score_surface.get_width() + 5, 10))
 
-    if player_life > 50:
-        player_life_bar.fill((152, 251, 152))
-    else:
-        player_life_bar.fill((0, 0, 0))
-
-    player_life_surface.blit(life_bar_image, (0, 0))
-    player_life_surface.blit(player_life_bar, (35, 0))
-
-    life_x_pos = 10
-    screen.blit(player_life_surface, (life_x_pos, 10))
-
-    bullet_counter_surface = pygame.Surface((200, 25), pygame.SRCALPHA, 32)
-    bullet_counter_surface.set_alpha(216)
-    bullet_counter_bar = pygame.Surface(((bullet_counter / 200) * 200, 30), pygame.SRCALPHA, 32)
-    bullet_counter_bar.set_alpha(216)
-    bullet_bar_image = pygame.image.load("images/bullet_bar.png").convert_alpha()
-    if bullet_counter > 50:
-        bullet_counter_bar.fill((255, 23, 23))
-    else:
-        bullet_counter_bar.fill((0, 0, 0))
-    bullet_counter_surface.blit(bullet_bar_image, (0, 0))
-    bullet_counter_surface.blit(bullet_counter_bar, (35, 0))
-    bullet_x_pos = 10
-    bullet_y_pos = player_life_surface.get_height() + 20
-    screen.blit(bullet_counter_surface, (bullet_x_pos, bullet_y_pos))
-
-    score_surface = pygame.font.SysFont('Comic Sans MS', 30).render(f'{score}', True, (238, 232, 170))
-    score_image_rect = score_surface.get_rect()
-    score_image_rect.x, score_image_rect.y = WIDTH - score_image_rect.width - extra_score_img.get_width() - 10, 10
-
-    screen.blit(extra_score_img, (score_image_rect.right + 5, score_image_rect.centery - extra_score_img.get_height()//2))
-    screen.blit(score_surface, score_image_rect)
-
-    hi_score_surface = pygame.font.SysFont('Comic Sans MS', 20).render(f'HI-SCORE: {hi_score}', True, (255, 255, 255))
-    hi_score_surface.set_alpha(128)
+    # Draw hi-score with subtle glow
+    hi_score_font = pygame.font.SysFont('Arial', 20)
+    hi_score_surface = hi_score_font.render(f'HI-SCORE: {hi_score}', True, (200, 200, 255))
+    hi_score_surface.set_alpha(180)
     hi_score_x_pos = (screen.get_width() - hi_score_surface.get_width()) // 2
-    hi_score_y_pos = 0
-    screen.blit(hi_score_surface, (hi_score_x_pos, hi_score_y_pos))
+    screen.blit(hi_score_surface, (hi_score_x_pos, 5))
 
     pygame.display.flip()
 

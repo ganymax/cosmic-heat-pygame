@@ -4,15 +4,18 @@ import random
 import pygame
 import pygame.mixer
 
-from classes.constants import WIDTH, HEIGHT, BLACK, WHITE, RED
+from classes.constants import WIDTH, HEIGHT, BLACK
+from cosmic_ui import ParallaxBackground, NeonButton
 
 
-def animate_screen():
+def animate_screen(screen, parallax_bg):
     for i in range(0, 20):
-        screen.blit(mainmenu_img, (0, 0))
+        parallax_bg.update(2.0)
+        parallax_bg.draw(screen)
         pygame.display.flip()
         pygame.time.wait(10)
-        screen.blit(mainmenu_img, (random.randint(-5, 5), random.randint(-5, 5)))
+        parallax_bg.update(2.0)
+        parallax_bg.draw(screen)
         pygame.display.flip()
         pygame.time.wait(10)
 
@@ -31,15 +34,24 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Main Menu")
 clock = pygame.time.Clock()
 
-mainmenu_img = pygame.image.load('images/mainmenu.jpg').convert()
-mainmenu_img = pygame.transform.scale(mainmenu_img, (WIDTH, HEIGHT))
+parallax_bg = ParallaxBackground()
 
 logo_img = pygame.image.load('images/ch.png').convert_alpha()
 logo_x = (WIDTH - logo_img.get_width()) // 2
 logo_y = 50
 
-play_button_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 - 25, 205, 50)
-quit_button_rect = pygame.Rect(WIDTH // 2 - 100, HEIGHT // 2 + 50, 205, 50)
+play_button = NeonButton(
+    WIDTH // 2 - 100, HEIGHT // 2 - 25, 200, 50,
+    "Play",
+    base_color=(50, 200, 100),
+    glow_color=(100, 255, 150)
+)
+quit_button = NeonButton(
+    WIDTH // 2 - 100, HEIGHT // 2 + 50, 200, 50,
+    "Exit",
+    base_color=(200, 80, 80),
+    glow_color=(255, 120, 120)
+)
 
 pygame.mixer.music.load('game_sounds/menu.mp3')
 pygame.mixer.music.play(-1)
@@ -62,14 +74,14 @@ while show_menu:
 
         if event.type == pygame.MOUSEBUTTONDOWN:
             x, y = event.pos
-            if play_button_rect.collidepoint(x, y):
+            if play_button.collidepoint((x, y)):
                 explosion_sound.play()
-                animate_screen()
+                animate_screen(screen, parallax_bg)
                 show_menu = False
                 import main
                 main.main()
                 break
-            elif quit_button_rect.collidepoint(x, y):
+            elif quit_button.collidepoint((x, y)):
                 pygame.quit()
                 sys.exit()
 
@@ -81,7 +93,7 @@ while show_menu:
             elif event.key == pygame.K_RETURN:
                 if selected_button == 0:
                     explosion_sound.play()
-                    animate_screen()
+                    animate_screen(screen, parallax_bg)
                     show_menu = False
                     screen.fill(BLACK)
                     import main
@@ -96,7 +108,7 @@ while show_menu:
                 if event.button == 0:
                     if selected_button == 0:
                         explosion_sound.play()
-                        animate_screen()
+                        animate_screen(screen, parallax_bg)
                         show_menu = False
                         screen.fill(BLACK)
                         import main
@@ -111,25 +123,14 @@ while show_menu:
                 elif event.value[1] == -1:
                     selected_button = 1
 
-    screen.blit(mainmenu_img, (0, 0))
+    parallax_bg.update(0.5)
+    parallax_bg.draw(screen)
 
     screen.blit(logo_img, (logo_x, logo_y))
 
-    font = pygame.font.SysFont('Comic Sans MS', 40)
-    text = font.render("Play", True, WHITE)
-    pygame.draw.rect(screen, BLACK, play_button_rect, border_radius=10)
-    if selected_button == 0:
-        pygame.draw.rect(screen, RED, play_button_rect, border_radius=10, width=4)
-    text_rect = text.get_rect()
-    text_rect.center = play_button_rect.center
-    screen.blit(text, text_rect)
-    text = font.render("Exit", True, WHITE)
-    pygame.draw.rect(screen, BLACK, quit_button_rect, border_radius=10)
-    if selected_button == 1:
-        pygame.draw.rect(screen, RED, quit_button_rect, border_radius=10, width=4)
-    text_rect = text.get_rect()
-    text_rect.center = quit_button_rect.center
-    screen.blit(text, text_rect)
+    play_button.draw(screen, selected=selected_button == 0)
+    quit_button.draw(screen, selected=selected_button == 1)
+
     pygame.display.flip()
     clock.tick(60)
 

@@ -334,3 +334,92 @@ class CosmicHiScoreDisplay:
         screen.blit(bg, (text_rect.x - 15, text_rect.y - 5))
         
         screen.blit(text, text_rect)
+
+
+class NeonButton:
+    """Neon-styled button with glow effect that intensifies when selected."""
+    
+    def __init__(self, x, y, width, height, text, 
+                 base_color=(100, 150, 255), glow_color=(150, 200, 255)):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.text = text
+        self.base_color = base_color
+        self.glow_color = glow_color
+        self.font = pygame.font.SysFont('Arial', 32, bold=True)
+        self.pulse_time = 0
+    
+    def draw(self, screen, selected=False):
+        """Draw button with varying glow intensity based on selection state."""
+        self.pulse_time += 0.1
+        
+        if selected:
+            pulse = 0.7 + 0.3 * math.sin(self.pulse_time * 2)
+            glow_intensity = 1.0
+            glow_layers = 5
+        else:
+            pulse = 1.0
+            glow_intensity = 0.3
+            glow_layers = 2
+        
+        # Outer glow layers
+        for i in range(glow_layers, 0, -1):
+            glow_rect = self.rect.inflate(i * 8, i * 6)
+            glow_alpha = int(40 * glow_intensity * pulse / i)
+            glow_surface = pygame.Surface((glow_rect.width, glow_rect.height), pygame.SRCALPHA)
+            pygame.draw.rect(
+                glow_surface, 
+                (*self.glow_color, glow_alpha),
+                (0, 0, glow_rect.width, glow_rect.height),
+                border_radius=12
+            )
+            screen.blit(glow_surface, glow_rect.topleft)
+        
+        # Button background
+        bg_alpha = int(180 * pulse) if selected else 140
+        bg_surface = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(
+            bg_surface,
+            (15, 20, 40, bg_alpha),
+            (0, 0, self.rect.width, self.rect.height),
+            border_radius=10
+        )
+        screen.blit(bg_surface, self.rect.topleft)
+        
+        # Border with glow
+        border_alpha = int(200 * pulse) if selected else 80
+        border_width = 3 if selected else 1
+        pygame.draw.rect(
+            screen,
+            (*self.glow_color, border_alpha),
+            self.rect,
+            width=border_width,
+            border_radius=10
+        )
+        
+        # Inner highlight line at top
+        if selected:
+            highlight_rect = pygame.Rect(
+                self.rect.x + 10, self.rect.y + 2,
+                self.rect.width - 20, 2
+            )
+            highlight_surface = pygame.Surface((highlight_rect.width, 2), pygame.SRCALPHA)
+            pygame.draw.rect(highlight_surface, (*self.glow_color, int(150 * pulse)), 
+                           (0, 0, highlight_rect.width, 2), border_radius=1)
+            screen.blit(highlight_surface, highlight_rect.topleft)
+        
+        # Text with glow when selected
+        text_color = (255, 255, 255) if selected else (200, 200, 220)
+        text_surface = self.font.render(self.text, True, text_color)
+        text_rect = text_surface.get_rect(center=self.rect.center)
+        
+        if selected:
+            # Text glow
+            glow_text = self.font.render(self.text, True, self.glow_color)
+            for offset in [(1, 1), (-1, -1), (1, -1), (-1, 1)]:
+                screen.blit(glow_text, (text_rect.x + offset[0], text_rect.y + offset[1]))
+        
+        screen.blit(text_surface, text_rect)
+    
+    def collidepoint(self, pos):
+        """Check if a point is within the button."""
+        return self.rect.collidepoint(pos)

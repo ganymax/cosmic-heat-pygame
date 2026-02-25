@@ -5,7 +5,7 @@ import random
 
 from controls import move_player, move_player_with_joystick
 from classes.constants import WIDTH, HEIGHT, FPS, SHOOT_DELAY
-from functions import show_game_over, music_background
+from functions import show_game_over, show_pause_screen, music_background
 from menu import show_menu
 from cosmic_ui import (
     ParallaxBackground, NeonBar, CosmicScoreDisplay, CosmicHiScoreDisplay
@@ -165,10 +165,8 @@ while running:
                     bullet_counter -= 1
                 is_shooting = True
 
-            elif event.key == pygame.K_ESCAPE:
-                sys.exit(0)
-            elif event.key == pygame.K_p or event.key == pygame.K_PAUSE:
-                paused = not paused
+            elif event.key == pygame.K_ESCAPE or event.key == pygame.K_p or event.key == pygame.K_PAUSE:
+                paused = True
             elif not paused:
                 if event.key == pygame.K_LEFT:
                     player.move_left()
@@ -218,11 +216,10 @@ while running:
             move_player_with_joystick(joystick, player)
 
     if paused:
-        font = pygame.font.SysFont('Comic Sans MS', 40)
-        text = font.render("PAUSE", True, (255, 255, 255))
-        text_rect = text.get_rect(center=(WIDTH / 2, HEIGHT / 2))
-        screen.blit(text, text_rect)
-        pygame.display.flip()
+        game_surface = screen.copy()
+        result = show_pause_screen(game_surface)
+        if result == "resume":
+            paused = False
         continue
 
     keys = pygame.key.get_pressed()
@@ -333,32 +330,33 @@ while running:
         black_hole_group.add(black_hole_object)
 
     if player_life <= 0:
-        show_game_over(score)
-        boss1_spawned = False
-        boss1_health = 150
-        boss2_spawned = False
-        boss2_health = 150
-        boss3_spawned = False
-        boss3_health = 200
-        score = 0
-        player_life = 200
-        bullet_counter = 200
-        player.rect.topleft = initial_player_pos
-        bullets.empty()
-        bullet_refill_group.empty()
-        health_refill_group.empty()
-        double_refill_group.empty()
-        extra_score_group.empty()
-        black_hole_group.empty()
-        meteor_group.empty()
-        meteor2_group.empty()
-        enemy1_group.empty()
-        enemy2_group.empty()
-        boss1_group.empty()
-        boss2_group.empty()
-        boss3_group.empty()
-        explosions.empty()
-        explosions2.empty()
+        result = show_game_over(score)
+        if result == "retry":
+            boss1_spawned = False
+            boss1_health = 150
+            boss2_spawned = False
+            boss2_health = 150
+            boss3_spawned = False
+            boss3_health = 200
+            score = 0
+            player_life = 200
+            bullet_counter = 200
+            player.rect.topleft = initial_player_pos
+            bullets.empty()
+            bullet_refill_group.empty()
+            health_refill_group.empty()
+            double_refill_group.empty()
+            extra_score_group.empty()
+            black_hole_group.empty()
+            meteor_group.empty()
+            meteor2_group.empty()
+            enemy1_group.empty()
+            enemy2_group.empty()
+            boss1_group.empty()
+            boss2_group.empty()
+            boss3_group.empty()
+            explosions.empty()
+            explosions2.empty()
 
     for black_hole_object in black_hole_group:
         black_hole_object.update()

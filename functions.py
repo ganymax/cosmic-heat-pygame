@@ -1,6 +1,6 @@
 import pygame
-from classes.constants import WIDTH, HEIGHT
-from cosmic_ui import ParallaxBackground
+from classes.constants import WIDTH, HEIGHT, FPS
+from cosmic_ui import ParallaxBackground, NeonText
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
@@ -12,14 +12,15 @@ def music_background():
 
 
 def show_game_over(score):
+    """Display game over screen with animated parallax background and neon text."""
+    clock = pygame.time.Clock()
     parallax_bg = ParallaxBackground()
-    font = pygame.font.SysFont('Impact', 50)
-    font_small = pygame.font.SysFont('Impact', 30)
+    title_text = NeonText(font_size=60, bold=True)
+    score_text = NeonText(font_size=32, bold=True)
     
     pygame.mixer.music.load('game_sounds/gameover.mp3')
     pygame.mixer.music.play()
     
-    clock = pygame.time.Clock()
     start_time = pygame.time.get_ticks()
     duration = 4000
     
@@ -32,42 +33,37 @@ def show_game_over(score):
         parallax_bg.update(0.3)
         parallax_bg.draw(screen)
         
-        # Semi-transparent overlay
-        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 100))
-        screen.blit(overlay, (0, 0))
+        title_text.draw(
+            screen, "GAME OVER",
+            (WIDTH // 2, HEIGHT // 2 - 50),
+            color=(255, 60, 60),
+            glow_color=(255, 100, 100),
+            pulse=True
+        )
         
-        # Game over text with glow
-        text = font.render("GAME OVER", True, (255, 50, 50))
-        text_rect = text.get_rect(center=(WIDTH/2, HEIGHT/2 - 50))
-        
-        # Glow effect
-        glow_surface = pygame.Surface((text_rect.width + 40, text_rect.height + 20), pygame.SRCALPHA)
-        pygame.draw.rect(glow_surface, (255, 50, 50, 30), 
-                        (0, 0, glow_surface.get_width(), glow_surface.get_height()), 
-                        border_radius=10)
-        screen.blit(glow_surface, (text_rect.x - 20, text_rect.y - 10))
-        screen.blit(text, text_rect)
-        
-        # Score text
-        score_text = font_small.render(f"Final Score: {score:,}", True, (255, 255, 255))
-        score_rect = score_text.get_rect(center=(WIDTH/2, HEIGHT/2 + 50))
-        screen.blit(score_text, score_rect)
+        score_text.draw(
+            screen, f"Final Score: {score:,}",
+            (WIDTH // 2, HEIGHT // 2 + 50),
+            color=(255, 255, 255),
+            glow_color=(200, 200, 255),
+            pulse=False
+        )
         
         pygame.display.flip()
-        clock.tick(60)
+        clock.tick(FPS)
     
     music_background()
 
 
 def show_game_win():
+    """Display win screen with animated parallax background and neon text."""
+    clock = pygame.time.Clock()
     parallax_bg = ParallaxBackground()
-    font = pygame.font.SysFont('Impact', 50)
+    title_text = NeonText(font_size=50, bold=True)
     
     pygame.mixer.music.load('game_sounds/win.mp3')
     pygame.mixer.music.play()
     
-    clock = pygame.time.Clock()
     start_time = pygame.time.get_ticks()
     duration = 1000
     
@@ -80,19 +76,15 @@ def show_game_win():
         parallax_bg.update(1.5)
         parallax_bg.draw(screen)
         
-        # Win text with glow
-        text = font.render("AWESOME! GO ON!", True, (100, 255, 150))
-        text_rect = text.get_rect(center=(WIDTH/2, HEIGHT/2))
-        
-        # Glow effect
-        glow_surface = pygame.Surface((text_rect.width + 40, text_rect.height + 20), pygame.SRCALPHA)
-        pygame.draw.rect(glow_surface, (100, 255, 150, 40), 
-                        (0, 0, glow_surface.get_width(), glow_surface.get_height()), 
-                        border_radius=10)
-        screen.blit(glow_surface, (text_rect.x - 20, text_rect.y - 10))
-        screen.blit(text, text_rect)
+        title_text.draw(
+            screen, "AWESOME! GO ON!",
+            (WIDTH // 2, HEIGHT // 2),
+            color=(100, 255, 150),
+            glow_color=(150, 255, 200),
+            pulse=True
+        )
         
         pygame.display.flip()
-        clock.tick(60)
+        clock.tick(FPS)
     
     music_background()

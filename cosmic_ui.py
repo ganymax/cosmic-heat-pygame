@@ -340,14 +340,15 @@ class NeonButton:
     """Neon-styled button with glow effect that intensifies when selected."""
     
     def __init__(self, x, y, width, height, text, 
-                 base_color=(100, 150, 255), glow_color=(150, 200, 255)):
+                 base_color=(80, 120, 200), glow_color=(100, 180, 255),
+                 font_size=36):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
         self.base_color = base_color
         self.glow_color = glow_color
-        self.font = pygame.font.SysFont('Arial', 32, bold=True)
+        self.font = pygame.font.SysFont('Arial', font_size, bold=True)
         self.pulse_time = 0
-    
+        
     def draw(self, screen, selected=False):
         """Draw button with varying glow intensity based on selection state."""
         self.pulse_time += 0.1
@@ -361,10 +362,11 @@ class NeonButton:
             glow_intensity = 0.3
             glow_layers = 2
         
-        # Outer glow layers
+        # Glow effect (more layers and brighter when selected)
         for i in range(glow_layers, 0, -1):
-            glow_rect = self.rect.inflate(i * 8, i * 6)
             glow_alpha = int(40 * glow_intensity * pulse / i)
+            expand = i * 4 if selected else i * 2
+            glow_rect = self.rect.inflate(expand, expand)
             glow_surface = pygame.Surface((glow_rect.width, glow_rect.height), pygame.SRCALPHA)
             pygame.draw.rect(
                 glow_surface, 
@@ -375,37 +377,40 @@ class NeonButton:
             screen.blit(glow_surface, glow_rect.topleft)
         
         # Button background
-        bg_alpha = int(180 * pulse) if selected else 140
-        bg_surface = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
-        pygame.draw.rect(
-            bg_surface,
-            (15, 20, 40, bg_alpha),
-            (0, 0, self.rect.width, self.rect.height),
-            border_radius=10
-        )
-        screen.blit(bg_surface, self.rect.topleft)
+        bg_alpha = 200 if selected else 160
+        button_surface = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
         
-        # Border with glow
-        border_alpha = int(200 * pulse) if selected else 80
-        border_width = 3 if selected else 1
-        pygame.draw.rect(
-            screen,
-            (*self.glow_color, border_alpha),
-            self.rect,
-            width=border_width,
-            border_radius=10
-        )
-        
-        # Inner highlight line at top
-        if selected:
-            highlight_rect = pygame.Rect(
-                self.rect.x + 10, self.rect.y + 2,
-                self.rect.width - 20, 2
+        # Gradient background
+        for i in range(self.rect.height):
+            gradient_factor = 0.3 + 0.7 * (1 - abs(i - self.rect.height // 2) / (self.rect.height // 2))
+            if selected:
+                col = tuple(int(c * gradient_factor * pulse) for c in self.base_color)
+            else:
+                col = tuple(int(c * gradient_factor * 0.5) for c in self.base_color)
+            pygame.draw.line(
+                button_surface, 
+                (*col, bg_alpha), 
+                (0, i), 
+                (self.rect.width, i)
             )
-            highlight_surface = pygame.Surface((highlight_rect.width, 2), pygame.SRCALPHA)
-            pygame.draw.rect(highlight_surface, (*self.glow_color, int(150 * pulse)), 
-                           (0, 0, highlight_rect.width, 2), border_radius=1)
-            screen.blit(highlight_surface, highlight_rect.topleft)
+        
+        # Button border
+        border_alpha = int(200 * pulse) if selected else 100
+        pygame.draw.rect(
+            button_surface,
+            (*self.glow_color, border_alpha),
+            (0, 0, self.rect.width, self.rect.height),
+            width=2,
+            border_radius=10
+        )
+        
+        # Top highlight
+        if selected:
+            highlight_surface = pygame.Surface((self.rect.width - 20, 2), pygame.SRCALPHA)
+            highlight_surface.fill((*self.glow_color, int(150 * pulse)))
+            button_surface.blit(highlight_surface, (10, 3))
+        
+        screen.blit(button_surface, self.rect.topleft)
         
         # Text with glow when selected
         text_color = (255, 255, 255) if selected else (200, 200, 220)
@@ -415,11 +420,48 @@ class NeonButton:
         if selected:
             # Text glow
             glow_text = self.font.render(self.text, True, self.glow_color)
-            for offset in [(1, 1), (-1, -1), (1, -1), (-1, 1)]:
-                screen.blit(glow_text, (text_rect.x + offset[0], text_rect.y + offset[1]))
+            for offset in [(-1, -1), (1, -1), (-1, 1), (1, 1)]:
+                glow_rect = text_rect.copy()
+                glow_rect.x += offset[0]
+                glow_rect.y += offset[1]
+                glow_text.set_alpha(int(100 * pulse))
+                screen.blit(glow_text, glow_rect)
         
         screen.blit(text_surface, text_rect)
     
-    def collidepoint(self, pos):
-        """Check if a point is within the button."""
+    def is_hovered(self, pos):
+        """Check if mouse position is over the button."""
         return self.rect.collidepoint(pos)
+
+
+class NeonText:
+    """Neon-styled text with glow effect for headers and important messages."""
+    
+    def __init__(self, font_name='Arial', font_size=50, bold=True):
+        self.font = pygame.font.SysFont(font_name, font_size, bold=bold)
+        self.pulse_time = 0
+    
+    def draw(self, screen, text, center_pos, color=(255, 100, 100), 
+             glow_color=None, pulse=True):
+        """Draw text with neon glow effect."""
+        if glow_color is None:
+            glow_color = color
+            
+        self.pulse_time += 0.1
+        pulse_factor = 0.7 + 0.3 * math.sin(self.pulse_time) if pulse else 1.0
+        
+        text_surface = self.font.render(text, True, color)
+        text_rect = text_surface.get_rect(center=center_pos)
+        
+        # Glow layers
+        for i in range(3, 0, -1):
+            glow_alpha = int(60 * pulse_factor / i)
+            glow_surface = self.font.render(text, True, (*glow_color[:3], glow_alpha))
+            for offset in [(-i, -i), (i, -i), (-i, i), (i, i), (0, -i), (0, i), (-i, 0), (i, 0)]:
+                glow_rect = text_rect.copy()
+                glow_rect.x += offset[0]
+                glow_rect.y += offset[1]
+                screen.blit(glow_surface, glow_rect)
+        
+        screen.blit(text_surface, text_rect)
+        return text_rect

@@ -7,6 +7,9 @@ from controls import move_player, move_player_with_joystick
 from classes.constants import WIDTH, HEIGHT, FPS, SHOOT_DELAY
 from functions import show_game_over, music_background
 from menu import show_menu
+from cosmic_ui import (
+    ParallaxBackground, NeonBar, CosmicScoreDisplay, CosmicHiScoreDisplay
+)
 
 from classes.player import Player
 from classes.bullets import Bullet
@@ -23,117 +26,6 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 surface = pygame.Surface((WIDTH, HEIGHT))
 pygame.display.set_caption("Cosmic Heat")
 clock = pygame.time.Clock()
-
-
-class ParallaxLayer:
-    def __init__(self, speed, color_base, star_count, star_size_range):
-        self.speed = speed
-        self.y_offset = 0
-        self.surface = pygame.Surface((WIDTH, HEIGHT * 2), pygame.SRCALPHA)
-        self.generate_stars(color_base, star_count, star_size_range)
-
-    def generate_stars(self, color_base, star_count, star_size_range):
-        self.surface.fill((0, 0, 0, 0))
-        for _ in range(star_count):
-            x = random.randint(0, WIDTH)
-            y = random.randint(0, HEIGHT * 2)
-            size = random.randint(star_size_range[0], star_size_range[1])
-            brightness = random.randint(150, 255)
-            r = min(255, color_base[0] + random.randint(-30, 30))
-            g = min(255, color_base[1] + random.randint(-30, 30))
-            b = min(255, color_base[2] + random.randint(-30, 30))
-            alpha = random.randint(180, 255)
-            pygame.draw.circle(self.surface, (r, g, b, alpha), (x, y), size)
-
-    def update(self):
-        self.y_offset += self.speed
-        if self.y_offset >= HEIGHT:
-            self.y_offset = 0
-
-    def draw(self, screen):
-        screen.blit(self.surface, (0, self.y_offset - HEIGHT))
-        screen.blit(self.surface, (0, self.y_offset))
-
-
-class ParallaxBackground:
-    def __init__(self):
-        self.base_surface = pygame.Surface((WIDTH, HEIGHT))
-        self.base_surface.fill((5, 5, 20))
-        self.layer1 = ParallaxLayer(0.3, (100, 100, 150), 100, (1, 2))
-        self.layer2 = ParallaxLayer(0.7, (150, 150, 200), 60, (2, 3))
-        self.layer3 = ParallaxLayer(1.5, (200, 200, 255), 30, (2, 4))
-
-    def update(self, speed_multiplier=1.0):
-        self.layer1.speed = 0.3 * speed_multiplier
-        self.layer2.speed = 0.7 * speed_multiplier
-        self.layer3.speed = 1.5 * speed_multiplier
-        self.layer1.update()
-        self.layer2.update()
-        self.layer3.update()
-
-    def draw(self, screen):
-        screen.blit(self.base_surface, (0, 0))
-        self.layer1.draw(screen)
-        self.layer2.draw(screen)
-        self.layer3.draw(screen)
-
-
-def draw_neon_bar(screen, x, y, width, height, fill_ratio, fill_color, glow_color):
-    bar_surface = pygame.Surface((width + 20, height + 20), pygame.SRCALPHA)
-    for i in range(3, 0, -1):
-        glow_alpha = 60 - i * 15
-        glow_rect = pygame.Rect(10 - i * 2, 10 - i * 2, width + i * 4, height + i * 4)
-        glow_surf = pygame.Surface((glow_rect.width, glow_rect.height), pygame.SRCALPHA)
-        glow_surf.fill((*glow_color, glow_alpha))
-        bar_surface.blit(glow_surf, glow_rect.topleft)
-
-    bg_rect = pygame.Rect(10, 10, width, height)
-    pygame.draw.rect(bar_surface, (20, 20, 30, 180), bg_rect, border_radius=4)
-
-    fill_width = int(width * fill_ratio)
-    if fill_width > 0:
-        fill_rect = pygame.Rect(10, 10, fill_width, height)
-        fill_surf = pygame.Surface((fill_width, height), pygame.SRCALPHA)
-        fill_surf.fill((*fill_color, 200))
-        bar_surface.blit(fill_surf, fill_rect.topleft)
-
-    pygame.draw.rect(bar_surface, (*glow_color, 150), bg_rect, width=2, border_radius=4)
-
-    screen.blit(bar_surface, (x - 10, y - 10))
-
-
-def draw_health_bar(screen, player_life):
-    fill_ratio = max(0, min(player_life / 200, 1.0))
-    if player_life > 50:
-        fill_color = (0, 255, 150)
-        glow_color = (0, 255, 150)
-    else:
-        fill_color = (255, 50, 50)
-        glow_color = (255, 50, 50)
-
-    icon_surface = pygame.Surface((25, 25), pygame.SRCALPHA)
-    pygame.draw.circle(icon_surface, (*glow_color, 200), (12, 12), 8)
-    pygame.draw.circle(icon_surface, (255, 255, 255, 150), (12, 12), 5)
-
-    screen.blit(icon_surface, (10, 10))
-    draw_neon_bar(screen, 45, 12, 160, 20, fill_ratio, fill_color, glow_color)
-
-
-def draw_ammo_bar(screen, bullet_counter):
-    fill_ratio = max(0, min(bullet_counter / 200, 1.0))
-    if bullet_counter > 50:
-        fill_color = (255, 100, 50)
-        glow_color = (255, 100, 50)
-    else:
-        fill_color = (150, 50, 50)
-        glow_color = (150, 50, 50)
-
-    icon_surface = pygame.Surface((25, 25), pygame.SRCALPHA)
-    pygame.draw.polygon(icon_surface, (*glow_color, 200), [(12, 2), (20, 22), (4, 22)])
-    pygame.draw.polygon(icon_surface, (255, 255, 255, 150), [(12, 6), (17, 20), (7, 20)])
-
-    screen.blit(icon_surface, (10, 50))
-    draw_neon_bar(screen, 45, 52, 160, 20, fill_ratio, fill_color, glow_color)
 
 
 explosions = pygame.sprite.Group()
@@ -169,6 +61,7 @@ boss3_health = 200
 boss3_health_bar_rect = pygame.Rect(0, 0, 200, 5)
 boss3_spawned = False
 
+# Modern parallax background system
 parallax_bg = ParallaxBackground()
 
 explosion_images = [pygame.image.load(f"images/explosion/explosion{i}.png") for i in range(8)]
@@ -211,6 +104,29 @@ black_hole_imgs = [
 ]
 
 initial_player_pos = (WIDTH // 2, HEIGHT - 100)
+
+# Neon UI elements
+health_icon = pygame.image.load("images/life_bar.png").convert_alpha()
+ammo_icon = pygame.image.load("images/bullet_bar.png").convert_alpha()
+
+health_bar = NeonBar(
+    x=10, y=10, width=220, height=22,
+    icon_surface=health_icon,
+    fill_color=(50, 220, 100),
+    glow_color=(100, 255, 150),
+    low_threshold=0.25
+)
+
+ammo_bar = NeonBar(
+    x=10, y=45, width=220, height=22,
+    icon_surface=ammo_icon,
+    fill_color=(220, 80, 80),
+    glow_color=(255, 120, 120),
+    low_threshold=0.25
+)
+
+score_display = CosmicScoreDisplay(WIDTH - 15, 12, extra_score_img)
+hi_score_display = CosmicHiScoreDisplay()
 
 score = 0
 hi_score = 0
@@ -314,16 +230,17 @@ while running:
     if not paused:
         move_player(keys, player)
 
-        speed_multiplier = 1.0
-        if score > 3000:
-            speed_multiplier = 2.0
-        if score > 10000:
-            speed_multiplier = 3.0
-        if score > 15000:
-            speed_multiplier = 4.0
+    # Parallax background with score-based speed increase
+    bg_speed = 1.0
+    if score > 3000:
+        bg_speed = 1.5
+    if score > 10000:
+        bg_speed = 2.0
+    if score > 15000:
+        bg_speed = 2.5
 
-        parallax_bg.update(speed_multiplier)
-        parallax_bg.draw(screen)
+    parallax_bg.update(bg_speed)
+    parallax_bg.draw(screen)
 
     if score > hi_score:
         hi_score = score
@@ -838,21 +755,11 @@ while running:
             bullet.kill()
             bullet_counter -= 1
 
-    draw_health_bar(screen, player_life)
-    draw_ammo_bar(screen, bullet_counter)
-
-    score_surface = pygame.font.SysFont('Comic Sans MS', 30).render(f'{score}', True, (238, 232, 170))
-    score_image_rect = score_surface.get_rect()
-    score_image_rect.x, score_image_rect.y = WIDTH - score_image_rect.width - extra_score_img.get_width() - 10, 10
-
-    screen.blit(extra_score_img, (score_image_rect.right + 5, score_image_rect.centery - extra_score_img.get_height()//2))
-    screen.blit(score_surface, score_image_rect)
-
-    hi_score_surface = pygame.font.SysFont('Comic Sans MS', 20).render(f'HI-SCORE: {hi_score}', True, (255, 255, 255))
-    hi_score_surface.set_alpha(128)
-    hi_score_x_pos = (screen.get_width() - hi_score_surface.get_width()) // 2
-    hi_score_y_pos = 0
-    screen.blit(hi_score_surface, (hi_score_x_pos, hi_score_y_pos))
+    # Draw neon UI elements
+    health_bar.draw(screen, player_life, 200)
+    ammo_bar.draw(screen, bullet_counter, 200)
+    score_display.draw(screen, score)
+    hi_score_display.draw(screen, hi_score)
 
     pygame.display.flip()
 

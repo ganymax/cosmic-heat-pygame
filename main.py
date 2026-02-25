@@ -5,7 +5,7 @@ import random
 
 from controls import move_player, move_player_with_joystick
 from classes.constants import WIDTH, HEIGHT, FPS, SHOOT_DELAY
-from functions import show_game_over, show_pause_screen, music_background
+from functions import show_game_over, show_pause_menu, music_background
 from menu import show_menu
 from cosmic_ui import (
     ParallaxBackground, NeonBar, CosmicScoreDisplay, CosmicHiScoreDisplay
@@ -134,7 +134,6 @@ player = Player()
 player_life = 200
 bullet_counter = 200
 
-paused = False
 running = True
 
 joystick = None
@@ -157,7 +156,7 @@ while running:
             running = False
 
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE and not paused:
+            if event.key == pygame.K_SPACE:
                 if bullet_counter > 0 and pygame.time.get_ticks() - last_shot_time > SHOOT_DELAY:
                     last_shot_time = pygame.time.get_ticks()
                     bullet = Bullet(player.rect.centerx, player.rect.top)
@@ -166,45 +165,50 @@ while running:
                 is_shooting = True
 
             elif event.key == pygame.K_ESCAPE or event.key == pygame.K_p or event.key == pygame.K_PAUSE:
-                paused = True
-            elif not paused:
-                if event.key == pygame.K_LEFT:
-                    player.move_left()
-                elif event.key == pygame.K_RIGHT:
-                    player.move_right()
-                elif event.key == pygame.K_UP:
-                    player.move_up()
-                elif event.key == pygame.K_DOWN:
-                    player.move_down()
+                # Capture current screen for pause menu background
+                game_snapshot = screen.copy()
+                result = show_pause_menu(game_snapshot)
+                if result == 'resume':
+                    continue
+            elif event.key == pygame.K_LEFT:
+                player.move_left()
+            elif event.key == pygame.K_RIGHT:
+                player.move_right()
+            elif event.key == pygame.K_UP:
+                player.move_up()
+            elif event.key == pygame.K_DOWN:
+                player.move_down()
 
         elif event.type == pygame.KEYUP:
             if event.key == pygame.K_SPACE and player.original_image is not None:
                 player.image = player.original_image.copy()
                 is_shooting = False
-            elif not paused:
-                if event.key == pygame.K_LEFT:
-                    player.stop_left()
-                elif event.key == pygame.K_RIGHT:
-                    player.stop_right()
-                elif event.key == pygame.K_UP:
-                    player.stop_up()
-                elif event.key == pygame.K_DOWN:
-                    player.stop_down()
+            elif event.key == pygame.K_LEFT:
+                player.stop_left()
+            elif event.key == pygame.K_RIGHT:
+                player.stop_right()
+            elif event.key == pygame.K_UP:
+                player.stop_up()
+            elif event.key == pygame.K_DOWN:
+                player.stop_down()
 
         elif event.type == pygame.JOYBUTTONDOWN:
-            if event.button == 0 and not paused:
+            if event.button == 0:
                 is_shooting = True
                 if bullet_counter > 0:
                     bullet = Bullet(player.rect.centerx, player.rect.top)
                     bullets.add(bullet)
                     bullet_counter -= 1
             elif event.button == 7:
-                paused = not paused
+                game_snapshot = screen.copy()
+                result = show_pause_menu(game_snapshot)
+                if result == 'resume':
+                    continue
         elif event.type == pygame.JOYBUTTONUP:
             if event.button == 0 and player.original_image is not None:
                 is_shooting = False
 
-    if pygame.time.get_ticks() - last_shot_time > SHOOT_DELAY and is_shooting and not paused:
+    if pygame.time.get_ticks() - last_shot_time > SHOOT_DELAY and is_shooting:
         if bullet_counter > 0:
             last_shot_time = pygame.time.get_ticks()
             bullet = Bullet(player.rect.centerx, player.rect.top)
@@ -212,20 +216,10 @@ while running:
             bullet_counter -= 1
 
     if joystick:
-        if not paused:
-            move_player_with_joystick(joystick, player)
-
-    if paused:
-        game_surface = screen.copy()
-        result = show_pause_screen(game_surface)
-        if result == "resume":
-            paused = False
-        continue
+        move_player_with_joystick(joystick, player)
 
     keys = pygame.key.get_pressed()
-
-    if not paused:
-        move_player(keys, player)
+    move_player(keys, player)
 
     # Parallax background with score-based speed increase
     bg_speed = 1.0
@@ -331,7 +325,7 @@ while running:
 
     if player_life <= 0:
         result = show_game_over(score)
-        if result == "retry":
+        if result == 'retry':
             boss1_spawned = False
             boss1_health = 150
             boss2_spawned = False
@@ -357,6 +351,10 @@ while running:
             boss3_group.empty()
             explosions.empty()
             explosions2.empty()
+            boss1_bullets.empty()
+            boss2_bullets.empty()
+            boss3_bullets.empty()
+            enemy2_bullets.empty()
 
     for black_hole_object in black_hole_group:
         black_hole_object.update()
